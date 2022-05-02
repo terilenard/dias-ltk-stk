@@ -16,15 +16,15 @@ class LtkProc(object):
         super(LtkProc, self).__init__()
         
         # Compute the end frame arbitration ID
-        self._ltk_pub_st = id_st
-        self._ltk_pub_end = self._ltk_pub_st + 50
-        self._ltk_sig_st = self._ltk_pub_end + 1
-        self._ltk_sig_end = self._ltk_sig_st + 50
+        self._ltk_pub_st = 1044736
+        self._ltk_pub_end = self._ltk_pub_st #+ 50
+        self._ltk_sig_st = 1044787
+        self._ltk_sig_end = self._ltk_sig_st #+ 50
         
         logging.info("LtkProc: st: " + str(self._ltk_pub_st))
         
-        self._pub = KeyFragMngr(self._ltk_pub_st, self._ltk_pub_end, self._on_frag_completed)
-        self._sig = KeyFragMngr(self._ltk_sig_st, self._ltk_sig_end, self._on_frag_completed)
+        self._pub = KeyFragMngr(self._ltk_pub_st, self._ltk_pub_end, self._on_frag_pub_completed)
+        self._sig = KeyFragMngr(self._ltk_sig_st, self._ltk_sig_end, self._on_frag_sig_completed)
         
         self._callback_ltk = clbk_new_ltk
         
@@ -32,12 +32,25 @@ class LtkProc(object):
         self._sigdata = None
     
     def on_fragment(self, can_id, payload):
-        if (self._pub.on_fragment(can_id, payload)):
+
+        if can_id == self._ltk_pub_st:
+            self._pub.on_fragment(can_id, payload)
             return True
-            
-        return self._sig.on_fragment(can_id, payload)
+        elif can_id == self._ltk_sig_st:
+            self._sig.on_fragment(can_id, payload)
+            return True
+        else:
+            return False
     
-    
+    def _on_frag_pub_completed(self):
+        self._pub.frag_counter = 0
+        self._pubdata = self._pub.defragment_data()
+
+    def _on_frag_sig_completed(self):
+        self._pub.frag_counter = 0
+        self._sigdata = self._sig.defragment_data()
+        self._on_complete()
+
     def _on_frag_completed(self, can_id):
         '''
         Method overriden from base class once a fragment sequence is completed.
@@ -53,8 +66,6 @@ class LtkProc(object):
         else:
             logging.error("LtkProc: unknown end ID: " + str(can_id))
                 
-                
-
     def _on_complete(self):
         '''
         Called when all components should have been successfully completed.

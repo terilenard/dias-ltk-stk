@@ -18,46 +18,52 @@ class KeyFragMngr(object):
         self._id_end = id_end
         self._frags = []
         self._callback = clbk_on_fragend
+        self.frag_counter = 0
+        self.frag_count = 0
     
     def on_fragment(self, can_id, payload):
         '''
         Called once a new fragment is received.
         '''
-        
-        if (self._id_st == can_id):
+
+        # On the first message frag_counter should be 0.
+        # Do we need to increment frag_counter after the first message? Or only after the second?
+  
+        if self._id_st == (can_id + self.frag_counter):
             logging.info("KeyFragMngr: start of new fragment sequence: " + str(can_id))
             
             # Extract fragment count
             try:
-                frag_count = int.from_bytes(payload, 'little')
-                if (frag_count > 255):
-                    logging.error("KeyFragMngr: weird, a large number of fragments will be allocated: " + str(frag_count))
+                self.frag_count = int.from_bytes(payload, 'little')
+                if (self.frag_count > 255):
+                    logging.error("KeyFragMngr: weird, a large number of fragments will be allocated: " + str(self.frag_count))
                 else:
-                    logging.info("KeyFragMngr: start message received, creating fragment count: " + str(frag_count) )
+                    logging.info("KeyFragMngr: start message received, creating fragment count: " + str(self.frag_count) )
                 
-                self._frags = [None] * frag_count
+               # self._frags = [None] * frag_count
+                self._frags = []
+                self.frag_counter = self.frag_counter + 1 
             except Exception as ex:
                 logging.error("KeyFragMngr: cannot process fragment: " + str(ex))
                 
             return True
 
-        elif (self._id_end == can_id):
+
+        if (self.frag_counter > self.frag_count):
             logging.info("KeyFragMngr: end of new fragment sequence: " + str(can_id))
             
-            self._callback(can_id)
+            self._callback()
             
             return True
-        elif ((can_id > self._id_st) and (can_id < self._id_end)):
-        
-            if (len(self._frags) <= 0):
-                logging.error("KeyFragMngr: fragment list not yet initialized!!")
+        else:
+            if self.frag_count == 0:
+                self.frag_counter = 0
+                logging.error("KeyFragMngr: Null terminator received")
                 return True
-        
-            pos = can_id - self._id_st - 1
-            if (self._frags[pos] is not None):
-                logging.error("KeyFragMngr: A fragment already exists on this position: " + str(pos))
-                
-            self._frags[pos] = payload
+
+            self._frags.append(payload)
+            # logging.debug("Frag {} {}".format(self.frag_counter, self._frags[self.frag_counter-1].hex()))
+            self.frag_counter = self.frag_counter + 1
             return True
             
         return False

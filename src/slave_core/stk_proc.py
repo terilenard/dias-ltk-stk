@@ -16,13 +16,13 @@ class StkProc(object):
         super(StkProc, self).__init__()
         
         # Compute the end frame arbitration ID
-        self._stk_st = id_st
-        self._stk_end = self._stk_st + 50
+        self._stk_st = 1044992
+        self._stk_end = self._stk_st #+ 50
         
         logging.info("StkProc: st: " + str(self._stk_st))
         
         self._frag_mngr = KeyFragMngr(self._stk_st, self._stk_end, self._on_frag_completed)
-        
+
         self._callback_stk = clbk_new_stk
         
         self._key_data = None
@@ -30,20 +30,16 @@ class StkProc(object):
     def on_fragment(self, can_id, payload):
         return self._frag_mngr.on_fragment(can_id, payload)    
     
-    def _on_frag_completed(self, can_id):
+    def _on_frag_completed(self):
         '''
         Method overriden from base class once a fragment sequence is completed.
         '''
-        if (can_id == self._stk_end):
-            self._key_data = self._frag_mngr.defragment_data()
+        self._key_data = self._frag_mngr.defragment_data()
             
             # Now try to use the components
-            self._on_complete()
-        else:
-            logging.error("StkProc: unknown end ID: " + str(can_id))
+        self._frag_mngr.frag_counter = 0
+        self._on_complete()
                 
-                
-
     def _on_complete(self):
         '''
         Called when all components should have been successfully completed.

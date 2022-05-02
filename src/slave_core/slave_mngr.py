@@ -9,8 +9,8 @@ import time
 import datetime
 import base64
 import os
+import sys
 
-from slave_core.local_comm_handler import SlaveLocalComm
 from pytpm.slavetpm import SlaveTPM
 from slave_core.can_comm_handler import CanCommunications
 from utils.utils import read_binary_file
@@ -35,7 +35,6 @@ class SlaveMngr(object):
         
         self._ltk_key = None
         
-        self._local_commun = SlaveLocalComm()
         self._can_commun = CanCommunications(vbus_name, vbus_bitrate, ltk_st, stk_st, self._on_new_ltk, self._on_new_stk)
         self._key_store = SlaveTPM()
         
@@ -52,16 +51,20 @@ class SlaveMngr(object):
         Runs the main init sequence.
         '''
         
-        # Init local (pub/sub) communications
-        self._local_commun.setup_communications()
-        
         # Init key handlers
         self._key_store.init_key_handlers('SLAVE_TPMCTX')
         
+        if not self._key_store.load_post_provision():
+            logging.error("SlaveMngr: Couldn't load primary context and asymetric keys")
+            sys.exit(1)
+        
+        logging.info("SlaveMngr: Loaded provisioned handlers")
         # Load external key
+        logging.debug("Ext pub key value: {}".format(self._ext_pub_key))
         self._ext_pub_key_idx = self._key_store.load_external_key(self._ext_pub_key)
         if (self._ext_pub_key_idx < 0):
             logging.error("SlaveMngr: Unable to load external public key!")
+            sys.exit(1)
         
         # Init CAN communications
         self._can_commun.initialize()
@@ -90,7 +93,6 @@ class SlaveMngr(object):
     def stop_mngr_loop(self):
         if (self._running == True):
             self._running = False
-            self._local_commun.close_communications()
             self._can_commun.cleanup()
             
             logging.info("SlaveMngr: Commun closed!")
@@ -143,4 +145,3 @@ class SlaveMngr(object):
         
         # Publish the new key locally
         local_enc_key = self._mem_crypto.encrypt(bytes(self._stk_key))
-        self._local_commun.pub_fresh_key(self._stk_idx, str(local_enc_key))

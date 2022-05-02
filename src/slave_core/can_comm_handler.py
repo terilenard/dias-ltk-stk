@@ -33,7 +33,6 @@ class CanCommunications():
 
         self._vbus = None
         self._buffer = None
-        self._notifier = None
 
 
     def initialize(self):
@@ -45,8 +44,6 @@ class CanCommunications():
         try:
             self._vbus = can.interface.Bus(bustype='socketcan',
                                 channel=self._vbus_name, bitrate=self._bitrate)
-            #self._buffer = can.BufferedReader()
-            #self._notifier = (self._vbus, [_get_message, self._buffer])
 
         except Exception as ex:
             logging.error("CanCommunications: Unable to set-up CAN communications: " + str(ex))
@@ -71,7 +68,6 @@ class CanCommunications():
 
     def cleanup(self):
         if (self._vbus is not None):
-            self._notifier.stop()
             self._vbus.shutdown()
 
     def _on_new_ltk(self, comp_pub, comp_sig):
