@@ -9,8 +9,8 @@ import time
 import datetime
 import base64
 import os
+import sys
 
-from master_core.local_comm_handler import MasterLocalComm
 from pytpm.mastertpm import MasterTPM
 from master_core.can_comm_handler import CanCommunications
 from utils.utils import read_binary_file
@@ -37,7 +37,7 @@ class MasterMngr(object):
         self._stk_key = None
         self._stk_pub_data = None
         
-        self._local_commun = MasterLocalComm()
+        # TODO: add mqtt client here
         self._can_commun = CanCommunications(vbus_name, vbus_bitrate, ltk_st, stk_st)
         self._key_store = MasterTPM()
         
@@ -51,16 +51,22 @@ class MasterMngr(object):
         Runs the main init sequence.
         '''
         
-        # Init local (pub/sub) communications
-        self._local_commun.setup_communications()
-        
         # Init key handlers
         self._key_store.init_key_handlers('MASTER_TPMCTX')
+
+        # Load provisioned handlers and keys
+        
+        if not self._key_store.load_post_provision():
+            logging.error("MasterMngr: Couldn't load primary context and asymetric keys")
+            sys.exit(1)
+        
+        logging.info("MasterMngr: Loaded provisioned handlers")
         
         # Load external key
         self._ext_pub_key_idx = self._key_store.load_external_key(self._ext_pub_key)
         if (self._ext_pub_key_idx < 0):
             logging.error("MasterMngr: Unable to load external public key!")
+            sys.exit(1)
         
         # Init CAN communications
         self._can_commun.initialize()
@@ -90,9 +96,14 @@ class MasterMngr(object):
                 break
 
     def stop_mngr_loop(self):
+
+        if not self._key_store.flush_handlers():
+            logging.error("MasterMngr: Couldn't flush key handlers")
+
+        logging.info("MasterMngr: Flushed key handlers successfully")
+        
         if (self._running == True):
             self._running = False
-            self._local_commun.close_communications()
             self._can_commun.cleanup()
             
             logging.info("MasterMngr: Commun closed!")

@@ -83,7 +83,7 @@ class CanCommunications():
             frg_count = int(len(data) / 8)
             if (len(data) % 8 != 0):
                 frg_count += 1
-            msg = can.Message(arbitration_id=(arbitr_st + can_idx),
+            msg = can.Message(arbitration_id=arbitr_st,
                         data=frg_count.to_bytes(2, 'little'),
                         is_extended_id=True)
             self._vbus.send(msg)
@@ -94,7 +94,7 @@ class CanCommunications():
             
                 # In case we have a full payload
                 if ((data_idx + 8) <= len(data)):
-                    msg = can.Message(arbitration_id=(arbitr_st + can_idx),
+                    msg = can.Message(arbitration_id=arbitr_st,
                         data=data[data_idx:(data_idx+8)],
                         is_extended_id=True)
 
@@ -103,7 +103,7 @@ class CanCommunications():
                     
                 # In case we have at least one element
                 elif ((len(data) - data_idx) > 0):
-                    msg = can.Message(arbitration_id=(arbitr_st + can_idx),
+                    msg = can.Message(arbitration_id=arbitr_st,
                         data=data[data_idx:(len(data))],
                         is_extended_id=True)
                         
@@ -115,7 +115,7 @@ class CanCommunications():
                 data_idx += 8
 
             # Lastly, send the end of transmission CID frame
-            msg = can.Message(arbitration_id=arbitr_end,
+            msg = can.Message(arbitration_id=arbitr_st,
                         data=[],
                         is_extended_id=True)
             self._vbus.send(msg)
