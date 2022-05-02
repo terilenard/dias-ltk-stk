@@ -18,6 +18,7 @@ TPM2T_GETRANDOM = TPM2T_PATH + "tpm2_getrandom"
 TPM2T_SEAL = TPM2T_PATH + "tpm2_create"
 TPM2T_UNSEAL = TPM2T_PATH + "tpm2_unseal"
 TPM2T_HMAC = TPM2T_PATH + "tpm2_hmac"
+TPM2T_DICTIONNARY_LOCKOUT = TPM2T_PATH + "tpm2_dictionarylockout"
 
 
 TPM2T_TCTI_ABRMD = "--tcti=tabrmd:bus_name=com.intel.tss2.Tabrmd"
@@ -27,18 +28,14 @@ def TPM2_Provision(folderName, outFileName):
     Provisions a new hierarchy of keys (the endorsemene key), and stores the context file in the given folder.
     '''
 
-    # In case the folder already exists, do not continue
-    if (path.exists(folderName)):
-        print("Folder %s already exists!" % folderName)
-        return False
-
     # Create the folder
-    try:
-        result = os.mkdir(folderName)
-    except OSError as ex:
-        print("Failed to create folder: ", folderName)
-    else:
-        print("Folder %s successfully created" % folderName)
+    if (not path.exists(folderName)):
+        try:
+            result = os.mkdir(folderName)
+        except OSError as ex:
+            print("Failed to create folder: ", folderName)
+        else:
+            print("Folder %s successfully created" % folderName)
 
     # Launch the command
     result = ''
@@ -49,6 +46,20 @@ def TPM2_Provision(folderName, outFileName):
         return False
 
     return True
+
+def TPM2_DICTIONARY_LOCKOUT():
+
+    try:
+        result = subprocess.run([TPM2T_DICTIONNARY_LOCKOUT, "--setup-parameters", "--max-tries=4294967295", "--clear-lockout"])
+
+        if result.returncode == 0:
+            return True
+
+        return False
+
+    except subprocess.SubprocessError:
+        print("There was an error while launchnig " + TPM2T_EXTEND_PCR)
+        return False
 
 
 def TPM2_CreateAsymKey(parentkFileName, pkFolderName, pubkFileName, prvkFileName):

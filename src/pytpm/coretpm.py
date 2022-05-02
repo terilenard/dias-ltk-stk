@@ -1,10 +1,11 @@
 # This is the implementation of the Core TPM (connected to the CCU).
 # The code given here should be used for provisioning the Core TPM, and for issuing keys.
-from pytpm.tpm2tools import TPM2_Provision, TPM2_CreateAsymKey, TPM2_LoadExternalPubKey, TPM2_EvictControl, TPM2_FlushContext, TPM2_LoadKey
-from pytpm.tpm2tools import TPM2_Getrandom, TPM2_RSAEncrypt, TPM2_Hash, TPM2_Sign, TPM2_DeleteFile, TPM2_CreateFolder, TPM2_SealObject, TPM2_UnsealObject, TPM2_Verify, TPM2_RSADecrypt
+from pytpm.tpm2tools import *
 
 from random import randint
 from utils.utils import write_binary_file, read_binary_file
+import logging
+logger = logging.getLogger(__name__)
 
 TPM2T_PRIMARYCTX_FILE = "primary.ctx"
 TPM2T_PRIMARYCTX_PERSFILE = "persprimary.ctx"
@@ -111,6 +112,25 @@ class CoreTPM(object):
         self._f_mhmack = self._f_asymk + "/" + TPM2T_MHMACKEY_FOLDER
 
 
+    def load_post_provision(self):
+
+        TPM2_DICTIONARY_LOCKOUT()
+
+        self.flush_handlers()
+        
+        if (TPM2_Provision(self._f_primaryk, TPM2T_PRIMARYCTX_FILE) == False):
+            print("Creating primary.ctx failed")
+            return False
+
+        if (TPM2_LoadKey(self._h_primaryk, self._h_pub_asymk, self._h_sens_asymk, self._hl_pub_asymk) == False):
+            print("Creating primary.ctx failed")
+            return False
+        
+        return True
+
+    def flush_handlers(self):
+        return TPM2_FlushContext()
+        
     def provision_core(self, folderName):
         '''
         The main Master/Slave TPM provisioning method.
@@ -409,7 +429,7 @@ class CoreTPM(object):
         Verifies the data signature - considering that the data is stored in memory.
         '''
         if (ext_key_idx not in self._ext_keys):
-            print("External key not found in internal keystore: " + str(ext_key_id))
+            logging.debug("External key not found in internal keystore: " + str(ext_key_id))
             return None
         
         rr = str(randint(0, 1000))
@@ -417,15 +437,17 @@ class CoreTPM(object):
         fsig = self._f_ext + "/" + TPM2T_SIGSIG_FILE + rr + ".dat"
         
         if (write_binary_file(fdata, mem_data) == False):
-            return False
+           logging.debug("Write binary fail fdata")
+           return False
         if (write_binary_file(fsig, mem_sig) == False):
+            logging.debug("Write binary file faile fsig")
             TPM2_DeleteFile(fdata)
             return False
         
         # Get the key handlers from our internal keystore
         extk = self._ext_keys[ext_key_idx]
         res = TPM2_Verify(extk, fdata, fsig)
-        
-        TPM2_DeleteFile(fdata)
-        TPM2_DeleteFile(fsig)
+        logging.debug("Index {} verify res {}".format(extk, res))
+        #TPM2_DeleteFile(fdata)
+        #TPM2_DeleteFile(fsig)
         return res
