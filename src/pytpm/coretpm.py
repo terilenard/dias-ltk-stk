@@ -1,5 +1,14 @@
-# This is the implementation of the Core TPM (connected to the CCU).
-# The code given here should be used for provisioning the Core TPM, and for issuing keys.
+"""
+This work is licensed under the terms of the MIT license.  
+For a copy, see <https://opensource.org/licenses/MIT>.
+
+Developed by NISLAB - Network and Information Security Laboratory
+at George Emil Palade University of Medicine, Pharmacy, Science and
+Technology of Târgu Mureş <https://nislab.umfst.ro/>
+
+Contributors: Bela Genge, Teri Lenard
+"""
+
 from pytpm.tpm2tools import *
 
 from random import randint
