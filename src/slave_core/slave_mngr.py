@@ -10,15 +10,10 @@ Contributors: Bela Genge, Teri Lenard
 """
 
 import logging
-import time
-import datetime
-import base64
-import os
 import sys
 
 from pytpm.slavetpm import SlaveTPM
 from slave_core.can_comm_handler import CanCommunications
-from utils.utils import read_binary_file
 from utils.mem_crypto import MemCrypto
 
 class SlaveMngr(object):

@@ -11,8 +11,6 @@ Contributors: Bela Genge, Teri Lenard
 
 import logging
 import time
-import datetime
-import base64
 import os
 import sys
 

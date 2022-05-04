@@ -10,10 +10,9 @@ Contributors: Bela Genge
 """
 
 import logging
-import time
-import datetime
 
 import can
+
 from slave_core.ltk_proc import LtkProc
 from slave_core.stk_proc import StkProc
 

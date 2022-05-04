@@ -10,8 +10,6 @@ Contributors: Bela Genge, Teri Lenard
 """
 
 import logging
-import time
-import datetime
 
 import can
 

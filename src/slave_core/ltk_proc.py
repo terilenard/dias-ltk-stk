@@ -10,6 +10,7 @@ Contributors: Bela Genge, Teri Lenard
 """
 
 import logging
+
 from slave_core.key_frag_mngr import KeyFragMngr
 
 class LtkProc(object):

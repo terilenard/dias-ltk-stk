@@ -18,7 +18,7 @@ import datetime
 import signal
 from threading import Lock
 
-from comm_core.utils import get_configuration
+from utils.utils import get_configuration
 from slave_core.slave_mngr import SlaveMngr
 
 __version__ = "0.1"

@@ -13,12 +13,9 @@ import sys, os
 import argparse
 import logging
 import logging.handlers
-import time
-import datetime
 import signal
-from threading import Lock
 
-from comm_core.utils import get_configuration
+from utils.utils import get_configuration
 from master_core.master_mngr import MasterMngr
 
 __version__ = "0.1"
