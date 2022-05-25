@@ -1,4 +1,15 @@
+"""
+This work is licensed under the terms of the MIT license.  
+For a copy, see <https://opensource.org/licenses/MIT>.
 
+Developed by NISLAB - Network and Information Security Laboratory
+at George Emil Palade University of Medicine, Pharmacy, Science and
+Technology of Târgu Mureş <https://nislab.umfst.ro/>
+
+Contributors: Bela Genge
+"""
+
+import ConfigParser as configparser
 
 def read_binary_file(fname):
     res = None
@@ -19,3 +30,11 @@ def write_binary_file(fname, data):
         return False
 
     return True
+
+def get_configuration(filename):
+    """
+    Retrieve a configuration handler of a filename.
+    """
+    config = configparser.ConfigParser()
+    config.read(filename)
+    return config

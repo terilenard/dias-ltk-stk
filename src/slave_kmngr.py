@@ -1,8 +1,13 @@
-'''
-KeyManager/master_kmngr
+"""
+This work is licensed under the terms of the MIT license.  
+For a copy, see <https://opensource.org/licenses/MIT>.
 
-@author: Bela Genge
-'''
+Developed by NISLAB - Network and Information Security Laboratory
+at George Emil Palade University of Medicine, Pharmacy, Science and
+Technology of Târgu Mureş <https://nislab.umfst.ro/>
+
+Contributors: Bela Genge
+"""
 
 import sys, os
 import argparse
@@ -13,7 +18,7 @@ import datetime
 import signal
 from threading import Lock
 
-from comm_core.utils import get_configuration
+from utils.utils import get_configuration
 from slave_core.slave_mngr import SlaveMngr
 
 __version__ = "0.1"
