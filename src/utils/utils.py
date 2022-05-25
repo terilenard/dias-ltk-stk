@@ -38,3 +38,4 @@ def get_configuration(filename):
     config = configparser.ConfigParser()
     config.read(filename)
     return config
+    
