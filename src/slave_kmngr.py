@@ -73,6 +73,11 @@ def run_mngr(config):
     vbus_bitrate = None
     ltk_st = None
     stk_st = None
+    mqtt_user = None
+    mqtt_passwd = None
+    mqtt_host = None
+    mqtt_port = None
+
     try:
         shared_secret = config.get("Secrets", "shared_secret")
         stk_size = config.get("Secrets", "stk_size")
@@ -81,6 +86,11 @@ def run_mngr(config):
         vbus_bitrate = config.get("CAN", "bitrate")
         ltk_st = config.get("CAN", "ltk_st")
         stk_st = config.get("CAN", "stk_st")
+        mqtt_user = config.get("mqtt", "user")
+        mqtt_passwd = config.get("mqtt", "passwd")
+        mqtt_host = config.get("mqtt", "host")
+        mqtt_port = int(config.get("mqtt", "port"))
+
     except Exception as ex:
         logging.info("Main: unable to get init params: " + str(ex))
     
@@ -94,10 +104,15 @@ def run_mngr(config):
     logging.info("Main: vbus_bitrate: " + str(vbus_bitrate))
     logging.info("Main: ltk_st: " + str(ltk_st))
     logging.info("Main: stk_st: " + str(stk_st))
+    logging.info("Main: mqtt_user: " + mqtt_user)
+    logging.info("Main: mqtt_passwd: " + mqtt_passwd)
+    logging.info("Main: mqtt_host: " + mqtt_host)
+    logging.info("Main: mqtt_port: " + str(mqtt_port))
     
     global key_mngr
     key_mngr = SlaveMngr(shared_secret, ltk_size, stk_size,
-                ext_pub_key, vbus_name, vbus_bitrate, ltk_st, stk_st)
+                ext_pub_key, vbus_name, vbus_bitrate, ltk_st, stk_st,
+                mqtt_user, mqtt_passwd, mqtt_host, mqtt_port)
     
     try:
         key_mngr.run_mngr_loop()
