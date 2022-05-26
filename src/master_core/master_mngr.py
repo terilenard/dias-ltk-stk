@@ -14,19 +14,19 @@ import time
 import os
 import sys
 
+from threading import Timers
+
 from pytpm.mastertpm import MasterTPM
 from master_core.can_comm_handler import CanCommunications
 from utils.utils import read_binary_file
 from utils.mem_crypto import MemCrypto
+from client_mqtt import MQTTClient
 
 class MasterMngr(object):
 
     def __init__(self, shared_secret, ltk_size, stk_size, ext_pub_key,
-            vbus_name, vbus_bitrate, ltk_st, stk_st):
-        '''
-        Constructor.
-        '''
-        super(MasterMngr, self).__init__()
+            vbus_name, vbus_bitrate, ltk_st, stk_st, ltk_cycle, stk_cycle,
+            mqtt_user, mqtt_passwd, mqtt_host, mqtt_port):
         
         self._shared_secret = shared_secret
         self._ltk_size = int(int(ltk_size) / 8)
@@ -39,14 +39,21 @@ class MasterMngr(object):
         self._ltk_key = None
         self._stk_key = None
         self._stk_pub_data = None
+
+        self._ltk_cycle = ltk_cycle
+        self._stk_cycle = stk_cycle
+        self._ltk_timer = Timer(self._ltk_cycle, self._gen_ltk)
+        self._stk_timer = Timer(self._stk_cycle, self._gen_stk)
         
-        # TODO: add mqtt client here
         self._can_commun = CanCommunications(vbus_name, vbus_bitrate, ltk_st, stk_st)
         self._key_store = MasterTPM()
         
         self._counter_ltk = 0
         self._counter_stk = 0
         
+        self._mqtt_client = MQTTClient(mqtt_user, mqtt_passwd, 
+                                      mqtt_host, mqtt_port) 
+
         self._running = False
         
     def _initialize(self):
@@ -67,12 +74,23 @@ class MasterMngr(object):
         
         # Load external key
         self._ext_pub_key_idx = self._key_store.load_external_key(self._ext_pub_key)
-        if (self._ext_pub_key_idx < 0):
+        if self._ext_pub_key_idx < 0:
             logging.error("MasterMngr: Unable to load external public key!")
             sys.exit(1)
         
         # Init CAN communications
         self._can_commun.initialize()
+
+        logging.info("Connecting to mqtt broker")
+        self._mqtt_client.connect()
+        
+        if self._ltk_timer:
+            self._ltk_timer.start()
+            logging.info("MasterMngr: started ltk timer")
+
+        if self._stk_timer:
+            self._stk_timer.start()
+            logging.info("MasterMngr: started stk timer")
         
         logging.info("MasterMngr: Init finalized!")
     
@@ -83,15 +101,15 @@ class MasterMngr(object):
         self._initialize()
 
         self._running = True
-        while (self._running):
+        while self._running:
             try:
                 time.sleep(1)
                 
                 # Run Proto-LTK
-                self._gen_ltk()
+                #self._gen_ltk()
                 
                 # Run Proto-STK
-                self._gen_stk()
+                #self._gen_stk()
 
             except Exception as ex:
                 logging.exception("Exception in core loop: " + str(ex))
@@ -105,11 +123,21 @@ class MasterMngr(object):
 
         logging.info("MasterMngr: Flushed key handlers successfully")
         
-        if (self._running == True):
+        if self._running:
             self._running = False
             self._can_commun.cleanup()
             
             logging.info("MasterMngr: Commun closed!")
+
+        if self._ltk_timer:
+            self._ltk_timer.cancel()
+
+        if self._stk_timer:
+            self._stk_timer.cancel()
+
+        if self._mqtt_client.is_connected():
+            self._mqtt_client.stop()
+            logging.info("SlaveMngr: MQTT communication closed")
 
     def _gen_ltk(self):
         '''
@@ -117,10 +145,10 @@ class MasterMngr(object):
         '''
         
         self._counter_ltk += 1
-        if (self._counter_ltk % 20 != 0):
+        if self._counter_ltk % 20 != 0:
             return
         
-        if (self._ltk_idx < 0):
+        if self._ltk_idx < 0:
             try:
                 self._ltk_idx = self._key_store.generate_sealed_sym_key(self._ltk_size)
                 self._stk_idx = -1
@@ -131,12 +159,12 @@ class MasterMngr(object):
                 logging.error("MasterMngr: error while generating new symmetric key: " + str(ex))
                 return
             
-        if (self._ltk_idx < 0):
+        if self._ltk_idx < 0:
             logging.error("MasterMngr: unable to generate new LTK!")
             return
         
         res = self._key_store.export_sealed_sym_key(self._ext_pub_key_idx, self._ltk_idx)
-        if (res is None):
+        if res is None:
             logging.error("MasterMngr: Unable to export symmetric key!")
             return
         
@@ -147,7 +175,7 @@ class MasterMngr(object):
         mem_pubenc = read_binary_file(os.getcwd() + "/" + pubencf)
         mem_sign = read_binary_file(os.getcwd() + "/" + signf)
         
-        if ((mem_pubenc is None) or (mem_sign is None)):
+        if (mem_pubenc is None) or (mem_sign is None):
             logging.error("MasterMngr: Unable to read data from files!")
             return
         
@@ -165,29 +193,29 @@ class MasterMngr(object):
         '''
         Generates a new STK and publishes it periodically.
         '''
-        if (self._ltk_idx < 0):
+        if self._ltk_idx < 0:
             return
         
         self._counter_stk += 1
-        if (self._counter_stk % 5 != 0):
+        if self._counter_stk % 5 != 0:
             return
         
-        if (self._ltk_key is None):
+        if self._ltk_key is None:
             self._ltk_key = self._key_store.memory_export_sealed_key(self._ltk_idx)
-            if (self._ltk_key is None):
+            if self._ltk_key is None:
                 logging.error("MasterMngr: unable to export to LTK to memory!")
                 return
             
             self._ltk_key = bytes(self._ltk_key)
         
         # Trigger a new STK every 10 s
-        if (self._counter_stk % 10 == 0):
+        if self._counter_stk % 10 == 0:
             self._stk_pub_data =  None
         
-        if (self._stk_pub_data is None):
+        if self._stk_pub_data is None:
             # We have the LTK, now generate the new STK
             mem_crypto = MemCrypto()
-            if (mem_crypto.initialize_with_key(self._ltk_key) == False):
+            if mem_crypto.initialize_with_key(self._ltk_key) == False:
                 logging.error("MasterMngr: Unable to init crypto module!")
                 self._ltk_key = None
                 return
@@ -207,7 +235,10 @@ class MasterMngr(object):
         # Reset counter
         #self._counter_stk = 0
         
-        logging.info("MasterMngr: Sending STK frame: " + str(self._stk_pub_data))
-        self._can_commun.send_stk(self._stk_pub_data)
-        
-        
+        if self._stk_pub_data:
+
+            logging.info("MasterMngr: Sending STK to MQTT: " + str(self._stk_pub_data))
+            self._mqtt_client.publish_key(self._stk_pub_data)
+
+            logging.info("MasterMngr: Sending STK frame: " + str(self._stk_pub_data))
+            self._can_commun.send_stk(self._stk_pub_data)
