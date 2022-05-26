@@ -188,6 +188,10 @@ class MasterMngr(object):
         self._can_commun.send_ltk_pubk(mem_pubenc)
         self._can_commun.send_ltk_sig(mem_sign)
 
+        self._ltk_timer.cancel()
+        self._ltk_timer = Timer(self._ltk_cycle, self._gen_ltk)
+        self._ltk.timer.start()
+
 
     def _gen_stk(self):
         '''
@@ -242,3 +246,7 @@ class MasterMngr(object):
 
             logging.info("MasterMngr: Sending STK frame: " + str(self._stk_pub_data))
             self._can_commun.send_stk(self._stk_pub_data)
+
+        self._stk_timer.cancel()
+        self._stk_timer = Timer(self._stk_cycle, self._gen_stk)
+        self._stk.timer.start()
