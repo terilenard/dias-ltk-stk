@@ -15,11 +15,14 @@ import sys
 from pytpm.slavetpm import SlaveTPM
 from slave_core.can_comm_handler import CanCommunications
 from utils.mem_crypto import MemCrypto
+from client_mqtt import MQTTClient
+
 
 class SlaveMngr(object):
 
     def __init__(self, shared_secret, ltk_size, stk_size, ext_pub_key,
-            vbus_name, vbus_bitrate, ltk_st, stk_st):
+                 vbus_name, vbus_bitrate, ltk_st, stk_st,
+                 mqtt_user, mqtt_passwd, mqtt_host, mqtt_port):
         '''
         Constructor.
         '''
@@ -43,6 +46,9 @@ class SlaveMngr(object):
         
         self._mem_crypto = MemCrypto()
         self._mem_crypto.initialize_with_key(self._shared_secret.encode('utf-8'))
+        
+        self._mqtt_client = MQTTClient(mqtt_user, mqtt_passwd, 
+                                       mqtt_host, mqtt_port) 
         
         self._running = False
         
@@ -68,6 +74,9 @@ class SlaveMngr(object):
         
         # Init CAN communications
         self._can_commun.initialize()
+
+        logging.info("Connecting to mqtt broker")
+        self._mqtt_client.connect()
         
         logging.info("SlaveMngr: Init finalized!")
     
@@ -78,11 +87,8 @@ class SlaveMngr(object):
         self._initialize()
 
         self._running = True
-        while (self._running):
+        while self._running:
             try:
-                #time.sleep(1)
-                
-                # Read the CAN bus for messages!
                 self._can_commun.recv_msg()
 
             except Exception as ex:
@@ -91,11 +97,15 @@ class SlaveMngr(object):
                 break
 
     def stop_mngr_loop(self):
-        if (self._running == True):
+        if self._running:
             self._running = False
             self._can_commun.cleanup()
             
-            logging.info("SlaveMngr: Commun closed!")
+            logging.info("SlaveMngr: CAN communication closed")
+        
+        if self._mqtt_client.is_connected():
+            self._mqtt_client.stop()
+            logging.info("SlaveMngr: MQTT communication closed")
 
     def _on_new_ltk(self, comp_pub, comp_sig):
         '''
@@ -141,7 +151,6 @@ class SlaveMngr(object):
         self._stk_key = bytearray(key_data[4:])
         
         logging.debug("SlaveMngr: *** NEW STK ID: " + str(self._stk_idx))
-        logging.debug("SlaveMngr: *** NEW STK ID: " + str(self._stk_key))
         
         # Publish the new key locally
-        local_enc_key = self._mem_crypto.encrypt(bytes(self._stk_key))
+        self._mqtt_client.publish_key(self._stk_key)
