@@ -14,13 +14,11 @@ import time
 import os
 import sys
 
-from threading import Timers
-
 from pytpm.mastertpm import MasterTPM
 from master_core.can_comm_handler import CanCommunications
 from utils.utils import read_binary_file
 from utils.mem_crypto import MemCrypto
-from client_mqtt import MQTTClient
+from master_core.client_mqtt import MQTTClient
 
 class MasterMngr(object):
 
@@ -42,8 +40,8 @@ class MasterMngr(object):
 
         self._ltk_cycle = ltk_cycle
         self._stk_cycle = stk_cycle
-        self._ltk_timer = Timer(self._ltk_cycle, self._gen_ltk)
-        self._stk_timer = Timer(self._stk_cycle, self._gen_stk)
+        self._ltk_timer = None
+        self._stk_timer = None
         
         self._can_commun = CanCommunications(vbus_name, vbus_bitrate, ltk_st, stk_st)
         self._key_store = MasterTPM()
@@ -84,16 +82,8 @@ class MasterMngr(object):
         logging.info("Connecting to mqtt broker")
         self._mqtt_client.connect()
         
-        if self._ltk_timer:
-            self._ltk_timer.start()
-            logging.info("MasterMngr: started ltk timer")
-
-        if self._stk_timer:
-            self._stk_timer.start()
-            logging.info("MasterMngr: started stk timer")
-        
         logging.info("MasterMngr: Init finalized!")
-    
+
     def run_mngr_loop(self):
         logging.info("MasterMngr: Started the main manager loop")
         
@@ -104,17 +94,14 @@ class MasterMngr(object):
         while self._running:
             try:
                 time.sleep(1)
+                #Run Proto-LTK
+                self._gen_ltk()
                 
-                # Run Proto-LTK
-                #self._gen_ltk()
-                
-                # Run Proto-STK
-                #self._gen_stk()
-
+                #Run Proto-STK
+                self._gen_stk()
             except Exception as ex:
                 logging.exception("Exception in core loop: " + str(ex))
                 self._running = False
-                break
 
     def stop_mngr_loop(self):
 
@@ -122,18 +109,12 @@ class MasterMngr(object):
             logging.error("MasterMngr: Couldn't flush key handlers")
 
         logging.info("MasterMngr: Flushed key handlers successfully")
-        
+
         if self._running:
             self._running = False
             self._can_commun.cleanup()
             
             logging.info("MasterMngr: Commun closed!")
-
-        if self._ltk_timer:
-            self._ltk_timer.cancel()
-
-        if self._stk_timer:
-            self._stk_timer.cancel()
 
         if self._mqtt_client.is_connected():
             self._mqtt_client.stop()
@@ -143,9 +124,8 @@ class MasterMngr(object):
         '''
         Generate a new symmetric key - for data authentication.
         '''
-        
         self._counter_ltk += 1
-        if self._counter_ltk % 20 != 0:
+        if self._counter_ltk % self._ltk_cycle != 0:
             return
         
         if self._ltk_idx < 0:
@@ -188,20 +168,16 @@ class MasterMngr(object):
         self._can_commun.send_ltk_pubk(mem_pubenc)
         self._can_commun.send_ltk_sig(mem_sign)
 
-        self._ltk_timer.cancel()
-        self._ltk_timer = Timer(self._ltk_cycle, self._gen_ltk)
-        self._ltk.timer.start()
-
-
     def _gen_stk(self):
         '''
         Generates a new STK and publishes it periodically.
         '''
+
         if self._ltk_idx < 0:
             return
         
         self._counter_stk += 1
-        if self._counter_stk % 5 != 0:
+        if self._counter_stk % self._stk_cycle != 0:
             return
         
         if self._ltk_key is None:
@@ -213,7 +189,7 @@ class MasterMngr(object):
             self._ltk_key = bytes(self._ltk_key)
         
         # Trigger a new STK every 10 s
-        if self._counter_stk % 10 == 0:
+        if self._counter_stk % self._stk_cycle == 0:
             self._stk_pub_data =  None
         
         if self._stk_pub_data is None:
@@ -246,7 +222,4 @@ class MasterMngr(object):
 
             logging.info("MasterMngr: Sending STK frame: " + str(self._stk_pub_data))
             self._can_commun.send_stk(self._stk_pub_data)
-
-        self._stk_timer.cancel()
-        self._stk_timer = Timer(self._stk_cycle, self._gen_stk)
-        self._stk.timer.start()
+ 
