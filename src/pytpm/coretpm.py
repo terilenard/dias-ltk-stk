@@ -108,7 +108,7 @@ class CoreTPM(object):
         # Also prepare the folder identifier for the external keys
         self._f_ext = self._f_primaryk + "/" + TPM2T_EXTKEYSTORE_FOLDER
         
-        self._f_asymk = folderName + "/" + TPM2T_PUBCTX_FOLDER
+        self._f_asymk = self._f_primaryk + "/" + TPM2T_PUBCTX_FOLDER
         self._h_pub_asymk = self._f_asymk + "/" + TPM2T_PUBCTX_FILE
         self._hl_pub_asymk = self._f_asymk + "/" + TPM2T_LOADEDPUBKCTX_FILE
         self._hp_pub_asymk = self._f_asymk + "/" +  TPM2T_PUBCTX_PERSFILE
@@ -125,14 +125,14 @@ class CoreTPM(object):
 
         TPM2_DICTIONARY_LOCKOUT()
 
-        self.flush_handlers()
+        #self.flush_handlers()
         
         if (TPM2_Provision(self._f_primaryk, TPM2T_PRIMARYCTX_FILE) == False):
             print("Creating primary.ctx failed")
             return False
 
         if (TPM2_LoadKey(self._h_primaryk, self._h_pub_asymk, self._h_sens_asymk, self._hl_pub_asymk) == False):
-            print("Creating primary.ctx failed")
+            print("Loading asymetric keys failed")
             return False
         
         return True
