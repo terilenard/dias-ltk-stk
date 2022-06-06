@@ -9,7 +9,7 @@ Technology of Târgu Mureş <https://nislab.umfst.ro/>
 Contributors: Bela Genge
 """
 
-import ConfigParser as configparser
+import configparser
 
 def read_binary_file(fname):
     res = None
