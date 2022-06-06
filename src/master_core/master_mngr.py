@@ -105,10 +105,10 @@ class MasterMngr(object):
 
     def stop_mngr_loop(self):
 
-        if not self._key_store.flush_handlers():
-            logging.error("MasterMngr: Couldn't flush key handlers")
+        # if not self._key_store.flush_handlers():
+        #     logging.error("MasterMngr: Couldn't flush key handlers")
 
-        logging.info("MasterMngr: Flushed key handlers successfully")
+        # logging.info("MasterMngr: Flushed key handlers successfully")
 
         if self._running:
             self._running = False
