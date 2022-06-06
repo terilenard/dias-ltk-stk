@@ -22,6 +22,8 @@ class CanCommunications():
         '''
         super(CanCommunications, self).__init__()
         
+        can.util.set_logging_level("info")
+        
         self._vbus_name = vbus_name
         self._bitrate = bitrate
         self._ltk_st = int(ltk_st, 16)
