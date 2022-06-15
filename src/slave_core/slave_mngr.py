@@ -11,11 +11,13 @@ Contributors: Bela Genge, Teri Lenard
 
 import logging
 import sys
+import os
 
 from pytpm.slavetpm import SlaveTPM
 from slave_core.can_comm_handler import CanCommunications
 from utils.mem_crypto import MemCrypto
-from client_mqtt import MQTTClient
+from utils.utils import read_binary_file
+from slave_core.client_mqtt import MQTTClient
 
 
 class SlaveMngr(object):
@@ -66,12 +68,19 @@ class SlaveMngr(object):
         
         logging.info("SlaveMngr: Loaded provisioned handlers")
         # Load external key
-        logging.debug("Ext pub key value: {}".format(self._ext_pub_key))
         self._ext_pub_key_idx = self._key_store.load_external_key(self._ext_pub_key)
         if (self._ext_pub_key_idx < 0):
             logging.error("SlaveMngr: Unable to load external public key!")
             sys.exit(1)
         
+        logging.info("SlaveMngr: Checking for LTK key")
+        if (os.path.isfile(self._key_store.ltk_path)):
+            self._ltk_key = read_binary_file(self._key_store.ltk_path)
+
+        if self._ltk_key:
+            logging.info("SlaveMngr: LTK key loaded")
+        else:
+            logging.warning("SlaveMngr: Could not read LTK key")
         # Init CAN communications
         self._can_commun.initialize()
 
@@ -85,10 +94,12 @@ class SlaveMngr(object):
         
         # Run init sequence
         self._initialize()
-
         self._running = True
         while self._running:
             try:
+                #time.sleep(1)
+                
+                # Read the CAN bus for messages!
                 self._can_commun.recv_msg()
 
             except Exception as ex:
@@ -97,6 +108,7 @@ class SlaveMngr(object):
                 break
 
     def stop_mngr_loop(self):
+
         if self._running:
             self._running = False
             self._can_commun.cleanup()
@@ -111,6 +123,9 @@ class SlaveMngr(object):
         '''
         Callback when a new LTK is received.
         '''
+
+        logging.info("SlaveMngr: On new LTK")
+
         if (self._key_store.verify_signature(comp_pub, comp_sig, self._ext_pub_key_idx) == False):
             logging.error("SlaveMngr: SIGNATURE WAS NOT VERIFIED!")
             return
