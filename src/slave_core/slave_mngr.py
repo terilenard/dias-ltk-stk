@@ -97,8 +97,6 @@ class SlaveMngr(object):
         self._running = True
         while self._running:
             try:
-                #time.sleep(1)
-                
                 # Read the CAN bus for messages!
                 self._can_commun.recv_msg()
 
