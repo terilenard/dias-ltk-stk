@@ -51,7 +51,7 @@ def TPM2_Provision(folderName, outFileName):
     # Launch the command
     result = ''
     try:
-        result = subprocess.run([TPM2T_CREATEPRIMARY, '-C', 'p', '-c', folderName + '/' + outFileName, TPM2T_TCTI_ABRMD])
+        result = subprocess.run([TPM2T_CREATEPRIMARY, '-c', folderName + '/' + outFileName, TPM2T_TCTI_ABRMD])
     except Exception as ex:
         print("There was an error while launchnig " + TPM2T_CREATEPRIMARY)
         return False

@@ -83,17 +83,19 @@ class CoreTPM(object):
         # Define handlers and data structures for the external keys
         self._f_ext = None
         self._ext_keys = {}
-        self._ext_idx = 0
+        self._ext_idx = 1
 
         # Define handlers and data structures for distributed keys
         self._f_kdk = None
         self._kd_keys = {}
-        self._kd_idx = 0
+        self._kd_idx = 1
 
         # Define handlers and data structure for managed hmac keys
         self._f_hmack = None
         self._hmac_keys = {}
-        self._hmac_idx = 0
+        self._hmac_idx = 1
+
+        self.ltk_path = None
         
     
     def init_key_handlers(self, folderName):
@@ -119,6 +121,8 @@ class CoreTPM(object):
         
         # Prepare the folder for managed hmac keys
         self._f_mhmack = self._f_asymk + "/" + TPM2T_MHMACKEY_FOLDER
+
+        self.ltk_path = self._f_ext + "/" + TPM2T_DEC_FILE + "1" + ".dat"
 
 
     def load_post_provision(self):
@@ -298,6 +302,37 @@ class CoreTPM(object):
 
         return self._kd_idx
 
+    def load_sealed_sym_key(self, ext_key_idx, sealed_key_idx):
+ 
+            # Get the key handlers from our internal keystore
+            extk = self._f_ext + "/" + TPM2T_EXTNAME_FILE + str(self._ext_idx) + TPM2T_EXTEXTENSION_FILE
+            pubdk = self._f_kdk + "/" + TPM2T_KDISTROPRPUB_FILE + str(self._kd_idx) + TPM2T_KDISTROEXT_FILE
+            sensdk = self._f_kdk + "/" + TPM2T_KDISTROPRSENS_FILE + str(self._kd_idx) + TPM2T_KDISTROEXT_FILE
+
+            # First, the object needs to be loaded. We will obtain a context file.
+            loadedf = self._f_kdk + "/" + TPM2T_KDISTROPRLOADED_FILE + str(sealed_key_idx) + TPM2T_KDISTROEXT_FILE
+            if (TPM2_LoadKey(self._h_primaryk, pubdk, sensdk, loadedf) == False):
+                return None
+
+            # Next, proceed with the unseal operation.
+            unsealed_kf = self._f_kdk + "/" + TPM2T_TEMP1_FILE
+            if (TPM2_UnsealObject(loadedf, unsealed_kf) == False):
+                return None
+
+            # Now, we have the unsealed key, we can encrypt it with the public external key.
+            pubencf = self._f_kdk + "/" + TPM2T_KDISTROENCEX_FILE + str(ext_key_idx) + TPM2T_KDISTROEXT_FILE
+            if (TPM2_RSAEncrypt(extk, unsealed_kf, pubencf) == False):
+                return None
+
+            # DELETE the unsealed object from disk
+            if (TPM2_DeleteFile(unsealed_kf) == False):
+                return None
+
+            signf = self._f_kdk + "/" + TPM2T_KDISTROSIGNEX_FILE + str(ext_key_idx) + TPM2T_KDISTROEXT_FILE
+            if (TPM2_Sign(self._hl_pub_asymk, None, pubencf, signf) == False):
+                return None
+
+            return (pubencf, signf)
 
     def export_sealed_sym_key(self, ext_key_idx, sealed_key_idx):
         '''
@@ -306,10 +341,10 @@ class CoreTPM(object):
 
         # Verify if everything is in place
         if (ext_key_idx not in self._ext_keys):
-            print("External key not found in internal keystore: " + str(ext_key_id))
+            print("External key not found in internal keystore: " + str(ext_key_idx))
             return None
         if (sealed_key_idx not in self._kd_keys):
-            print("Distributed key not found in internal keystore: " + str(sealed_key_id))
+            print("Distributed key not found in internal keystore: " + str(sealed_key_idx))
             return None
 
         # Get the key handlers from our internal keystore
@@ -365,11 +400,12 @@ class CoreTPM(object):
         '''
         Export the selaed key to memory and return it.
         '''
-        if (sealed_key_idx not in self._kd_keys):
-            print("Distributed key not found in internal keystore: " + str(sealed_key_id))
-            return None
+        # if (sealed_key_idx not in self._kd_keys):
+        #     print("Distributed key not found in internal keystore: " + str(sealed_key_idx))
+        #     return None
 
-        (pubdk, sensdk) = self._kd_keys[sealed_key_idx]
+        pubdk = self._f_kdk + "/" + TPM2T_KDISTROPRPUB_FILE + str(self._kd_idx) + TPM2T_KDISTROEXT_FILE
+        sensdk = self._f_kdk + "/" + TPM2T_KDISTROPRSENS_FILE + str(self._kd_idx) + TPM2T_KDISTROEXT_FILE
 
         # First, the object needs to be loaded. We will obtain a context file.
         loadedf = self._f_kdk + "/" + TPM2T_KDISTROPRLOADED_FILE + str(sealed_key_idx) + TPM2T_KDISTROEXT_FILE
@@ -393,7 +429,7 @@ class CoreTPM(object):
         '''
         Decrypts the given data with private context key.
         '''
-        rr = str(randint(0, 1000))
+        rr = "1"
         fdata = self._f_ext + "/" + TPM2T_SIGDATA_FILE + rr + ".dat"
         fkey = self._f_ext + "/" + TPM2T_DEC_FILE + rr + ".dat"
         
@@ -405,8 +441,8 @@ class CoreTPM(object):
         if (TPM2_RSADecrypt(self._hl_pub_asymk, fdata, fkey) == True):
             res = read_binary_file(fkey)
         
-        TPM2_DeleteFile(fkey)
-        TPM2_DeleteFile(fdata)
+        #TPM2_DeleteFile(fkey)
+        #TPM2_DeleteFile(fdata)
         
         return res
 
@@ -441,7 +477,7 @@ class CoreTPM(object):
             logging.debug("External key not found in internal keystore: " + str(ext_key_id))
             return None
         
-        rr = str(randint(0, 1000))
+        rr = "1"
         fdata = self._f_ext + "/" + TPM2T_SIGDATA_FILE + rr + ".dat"
         fsig = self._f_ext + "/" + TPM2T_SIGSIG_FILE + rr + ".dat"
         
