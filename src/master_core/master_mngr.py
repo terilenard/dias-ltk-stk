@@ -90,12 +90,25 @@ class MasterMngr(object):
         # Run init sequence
         self._initialize()
 
+        # We should check if a LTK exits first and only then
+        # generate a new one
+        # If ASYMKEYCTX/KDISTROKEYS is not empty,
+        # a LTK was already generated
+
+        if len(os.listdir(self._key_store._f_kdk)) == 0:
+            logging.info("MasterMngr: A LTK key was not found")
+            logging.info("MasterMngr: Generating a new LTK key")
+            self._gen_ltk()
+        else:
+            logging.info("MasterMngr: LTK was already distributed")
+            logging.debug(os.listdir(self._key_store._f_kdk))
+            logging.debug("Len dir " + str(len(os.listdir(self._key_store._f_kdk))))
+            self._load_ltk()
+
         self._running = True
         while self._running:
             try:
                 time.sleep(1)
-                #Run Proto-LTK
-                self._gen_ltk()
                 
                 #Run Proto-STK
                 self._gen_stk()
@@ -119,6 +132,27 @@ class MasterMngr(object):
         if self._mqtt_client.is_connected():
             self._mqtt_client.stop()
             logging.info("SlaveMngr: MQTT communication closed")
+
+    def _load_ltk(self):
+
+        self._ext_pub_key_idx = 1
+        self._ltk_idx = 1
+
+        res = self._key_store.load_sealed_sym_key(self._ext_pub_key_idx, self._ltk_idx)
+        if res is None:
+            logging.error("MasterMngr: Unable to export symmetric key!")
+            return
+        
+        # Unpack
+        (pubencf, signf) = res
+
+        # Load to memory
+        mem_pubenc = read_binary_file(os.getcwd() + "/" + pubencf)
+        mem_sign = read_binary_file(os.getcwd() + "/" + signf)
+        
+        if (mem_pubenc is None) or (mem_sign is None):
+            logging.error("MasterMngr: Unable to read data from files!")
+            return
 
     def _gen_ltk(self):
         '''
