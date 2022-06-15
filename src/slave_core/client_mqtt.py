@@ -26,7 +26,6 @@ class MQTTClient(object):
         self._inst = mqtt.Client()
         self._inst.username_pw_set(user, password)
         self._inst.on_connect = self._on_connect
-        self._inst.on_subscribe = self._on_subscribe
 
         self._host = host
         self._port = port
@@ -49,8 +48,6 @@ class MQTTClient(object):
 
         if rc == 0:
             logger.info("Client connected successfully.")
-            self._inst.subscribe(self._log_topic, 0)
-
         else:
             logger.error("Client couldn't connect. Received code: {}.".format(rc))
             logger.info("Client tries reconnect...")
