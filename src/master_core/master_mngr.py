@@ -243,7 +243,7 @@ class MasterMngr(object):
             
             self._stk_pub_data = mem_crypto.encrypt(bytes(out_data))
             
-            logging.info("MasterMngr: A new STK was generated: " + str(self._stk_key))
+            logging.info("MasterMngr: A new STK was generated: " + str(bytes(out_data)))
             logging.info("MasterMngr: A new STK auth frame was generated: " + str(self._stk_pub_data))
 
         # Reset counter
@@ -251,8 +251,8 @@ class MasterMngr(object):
         
         if self._stk_pub_data:
 
-            logging.info("MasterMngr: Sending STK to MQTT: " + str(self._stk_pub_data))
-            self._mqtt_client.publish_key(self._stk_pub_data)
+            logging.info("MasterMngr: Sending STK to MQTT: " + str(out_data))
+            self._mqtt_client.publish_key(out_data[4:])
 
             logging.info("MasterMngr: Sending STK frame: " + str(self._stk_pub_data))
             self._can_commun.send_stk(self._stk_pub_data)
