@@ -61,7 +61,10 @@ class CanCommunications():
     
       #  try:
         msg = self._vbus.recv(0.1)
-        if (msg is not None):                
+        if msg is None:
+            return 
+
+        if msg.arbitration_id in [self._ltk_st, self._stk_st]:                
             if (self._ltk_proc.on_fragment(msg.arbitration_id, msg.data) == True):
                 return
             
