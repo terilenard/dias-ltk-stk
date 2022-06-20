@@ -206,7 +206,7 @@ class CoreTPM(object):
         '''
 
         # Prepare the handlers and new (internal) identifier
-        self._ext_idx = self._ext_idx + 1
+        # self._ext_idx = self._ext_idx + 1
         self._ext_keys[self._ext_idx] = self._f_ext + "/" + TPM2T_EXTNAME_FILE + str(self._ext_idx) + TPM2T_EXTEXTENSION_FILE
 
         alg_type = None
@@ -276,7 +276,7 @@ class CoreTPM(object):
         '''
 
         # Prepare the handlers and new (internal) identifier
-        self._kd_idx = self._kd_idx + 1
+        # self._kd_idx = self._kd_idx + 1
         #pubk = self._f_symk + "/" + TPM2T_SYMPUBNAME_FILE + str(self._sym_idx) + TPM2T_SYMEXTENSION_FILE
         #sensk = self._f_symk + "/" + TPM2T_SYMSENSNAME_FILE + str(self._sym_idx) + TPM2T_SYMEXTENSION_FILE
         #self._sym_keys[self._sym_idx] = (pubk, sensk, None)
